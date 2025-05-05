@@ -87,10 +87,9 @@ type MetadataEnrichmentStatus struct {
 }
 
 type EnrichmentRule struct {
-	Type    EnrichmentRuleType `json:"type,omitempty"`
-	Source  string             `json:"source,omitempty"`
-	Target  string             `json:"target,omitempty"`
-	Enabled bool               `json:"enabled,omitempty"`
+	Type   EnrichmentRuleType `json:"type,omitempty"`
+	Source string             `json:"source,omitempty"`
+	Target string             `json:"target,omitempty"`
 }
 
 func (rule EnrichmentRule) ToAnnotationKey() string {
