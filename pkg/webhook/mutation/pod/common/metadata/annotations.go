@@ -1,6 +1,8 @@
 package metadata
 
 import (
+	"encoding/json"
+	"github.com/vladimirvivien/gexe/str"
 	"strings"
 
 	"github.com/Dynatrace/dynatrace-operator/pkg/api/v1beta4/dynakube"
@@ -21,15 +23,10 @@ func copyAccordingToPrefix(pod *corev1.Pod, namespace corev1.Namespace) {
 }
 
 func copyAccordingToCustomRules(pod *corev1.Pod, namespace corev1.Namespace, dk dynakube.DynaKube) {
+	dataForJsonCopy := map[string]string{}
 	for _, rule := range dk.Status.MetadataEnrichment.Rules {
-		if rule.Target == "" {
-			log.Info("rule without target set found, ignoring", "source", rule.Source, "type", rule.Type)
-
-			continue
-		}
-
+		var key string
 		var valueFromNamespace string
-
 		var exists bool
 
 		switch rule.Type {
@@ -39,10 +36,24 @@ func copyAccordingToCustomRules(pod *corev1.Pod, namespace corev1.Namespace, dk 
 			valueFromNamespace, exists = namespace.Annotations[rule.Source]
 		}
 
+		key = rule.Target
+		if str.IsEmpty(key) {
+			key = rule.Source
+		}
+
 		if exists {
-			setPodAnnotationIfNotExists(pod, rule.ToAnnotationKey(), valueFromNamespace)
+			enrichmentKey := getMetadataEnrichmentKey(dynakube.EnrichmentNamespaceKey, string(rule.Type), key)
+			dataForJsonCopy[enrichmentKey] = valueFromNamespace
 		}
 	}
+
+	jsonAnnotations, err := json.Marshal(dataForJsonCopy)
+	if err != nil {
+		log.Info("failed to marshal annotations to map ", err)
+		return
+	}
+
+	setPodAnnotationIfNotExists(pod, dynakube.MetadataAnnotation, string(jsonAnnotations))
 }
 
 func setPodAnnotationIfNotExists(pod *corev1.Pod, key, value string) {
@@ -53,4 +64,8 @@ func setPodAnnotationIfNotExists(pod *corev1.Pod, key, value string) {
 	if _, ok := pod.Annotations[key]; !ok {
 		pod.Annotations[key] = value
 	}
+}
+
+func getMetadataEnrichmentKey(enrichmentKey, metadataType, key string) string {
+	return enrichmentKey + strings.ToLower(metadataType) + "." + key
 }
