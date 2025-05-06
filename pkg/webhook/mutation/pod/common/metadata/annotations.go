@@ -10,22 +10,35 @@ import (
 )
 
 func CopyMetadataFromNamespace(pod *corev1.Pod, namespace corev1.Namespace, dk dynakube.DynaKube) {
-	copyAccordingToCustomRules(pod, namespace, dk)
-	copyAccordingToPrefix(pod, namespace)
-}
+	copiedCustomRuleAnnotations := copyAccordingToCustomRules(pod, namespace, dk)
+	copiedPrefixAnnotations := copyAccordingToPrefix(pod, namespace)
 
-func copyAccordingToPrefix(pod *corev1.Pod, namespace corev1.Namespace) {
-	for key, value := range namespace.Annotations {
-		if strings.HasPrefix(key, dynakube.MetadataPrefix) {
-			setPodAnnotationIfNotExists(pod, key, value)
+	for k, v := range copiedPrefixAnnotations {
+		if _, ok := copiedCustomRuleAnnotations[k]; !ok {
+			copiedCustomRuleAnnotations[k] = v
 		}
 	}
+
+	setMetadataAnnotationValue(pod, copiedCustomRuleAnnotations) //json
 }
 
-func copyAccordingToCustomRules(pod *corev1.Pod, namespace corev1.Namespace, dk dynakube.DynaKube) {
-	dataForJsonCopy := map[string]string{}
+func copyAccordingToPrefix(pod *corev1.Pod, namespace corev1.Namespace) map[string]string {
+	addedAnnotations := map[string]string{}
+	for key, value := range namespace.Annotations {
+		if strings.HasPrefix(key, dynakube.MetadataPrefix) {
+			added := setPodAnnotationIfNotExists(pod, key, value)
+
+			if added {
+				addedAnnotations[key] = value
+			}
+		}
+	}
+	return addedAnnotations
+}
+
+func copyAccordingToCustomRules(pod *corev1.Pod, namespace corev1.Namespace, dk dynakube.DynaKube) map[string]string {
+	copiedAnnotations := make(map[string]string)
 	for _, rule := range dk.Status.MetadataEnrichment.Rules {
-		var key string
 		var valueFromNamespace string
 		var exists bool
 
@@ -36,36 +49,52 @@ func copyAccordingToCustomRules(pod *corev1.Pod, namespace corev1.Namespace, dk 
 			valueFromNamespace, exists = namespace.Annotations[rule.Source]
 		}
 
-		key = rule.Target
-		if str.IsEmpty(key) {
-			key = rule.Source
-		}
-
 		if exists {
-			enrichmentKey := getMetadataEnrichmentKey(dynakube.EnrichmentNamespaceKey, string(rule.Type), key)
-			dataForJsonCopy[enrichmentKey] = valueFromNamespace
+			if str.IsEmpty(rule.Target) { // Empty target rules are not copied as a single annotation but bulk into the json annotation
+				copiedAnnotations[getEmptyTargetEnrichmentKey(string(rule.Type), rule.Source)] = valueFromNamespace
+			} else {
+				added := setPodAnnotationIfNotExists(pod, rule.ToAnnotationKey(), valueFromNamespace)
+				if added {
+					copiedAnnotations[rule.Target] = valueFromNamespace //todo yuval - verify not rule.ToAnnotationKey() but target
+				}
+			}
 		}
 	}
-
-	jsonAnnotations, err := json.Marshal(dataForJsonCopy)
-	if err != nil {
-		log.Info("failed to marshal annotations to map ", err)
-		return
-	}
-
-	setPodAnnotationIfNotExists(pod, dynakube.MetadataAnnotation, string(jsonAnnotations))
+	return copiedAnnotations
 }
 
-func setPodAnnotationIfNotExists(pod *corev1.Pod, key, value string) {
+func setMetadataAnnotationValue(pod *corev1.Pod, annotations map[string]string) {
+	metadataAnnotations := map[string]string{}
+	for key, value := range annotations {
+		// Annotations added to the json must not have metadata.dynatrace.com/ prefix
+		if strings.HasPrefix(key, dynakube.MetadataPrefix) {
+			split := strings.Split(key, dynakube.MetadataPrefix)
+			metadataAnnotations[split[1]] = value
+		} else {
+			metadataAnnotations[key] = value
+		}
+	}
+
+	marshaledAnnotations, err := json.Marshal(metadataAnnotations)
+	if err != nil {
+		log.Error(err, "failed to marshal annotations to map", "annotations", annotations)
+	}
+
+	setPodAnnotationIfNotExists(pod, dynakube.MetadataAnnotation, string(marshaledAnnotations))
+}
+
+func setPodAnnotationIfNotExists(pod *corev1.Pod, key, value string) bool {
 	if pod.Annotations == nil {
 		pod.Annotations = make(map[string]string)
 	}
 
 	if _, ok := pod.Annotations[key]; !ok {
 		pod.Annotations[key] = value
+		return true
 	}
+	return false
 }
 
-func getMetadataEnrichmentKey(enrichmentKey, metadataType, key string) string {
-	return enrichmentKey + strings.ToLower(metadataType) + "." + key
+func getEmptyTargetEnrichmentKey(metadataType, key string) string {
+	return dynakube.EnrichmentNamespaceKey + strings.ToLower(metadataType) + "." + key
 }
