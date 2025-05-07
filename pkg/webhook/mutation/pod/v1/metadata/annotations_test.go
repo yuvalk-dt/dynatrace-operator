@@ -7,6 +7,7 @@ import (
 	"github.com/Dynatrace/dynatrace-operator/pkg/api/v1beta3/dynakube"
 	"github.com/Dynatrace/dynatrace-operator/pkg/consts"
 	"github.com/Dynatrace/dynatrace-operator/pkg/util/kubeobjects/env"
+	metacommon "github.com/Dynatrace/dynatrace-operator/pkg/webhook/mutation/pod/common/metadata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -32,19 +33,26 @@ func TestAddMetadataToInitEnv(t *testing.T) {
 			request.Pod.Annotations[dynakube.MetadataPrefix+key] = key + "-value"
 		}
 
+		metacommon.SetMetadataAnnotationValue(request.Pod, request.Pod.Annotations) //todo yuval
 		addMetadataToInitEnv(request.Pod, request.InstallContainer)
 
 		annotationsEnv := env.FindEnvVar(request.InstallContainer.Env, consts.EnrichmentWorkloadAnnotationsEnv)
 		require.NotNil(t, annotationsEnv)
 
+		t.Logf("%+v", annotationsEnv)
+
 		propagatedAnnotations := map[string]string{}
 		err := json.Unmarshal([]byte(annotationsEnv.Value), &propagatedAnnotations)
 		require.NoError(t, err)
 
+		t.Logf("%+v", propagatedAnnotations)
+
+		assert.Equal(t, len(expectedKeys)+1, len(propagatedAnnotations))
+
 		for _, key := range expectedKeys {
 			require.Contains(t, propagatedAnnotations, key)
 			assert.Equal(t, key+"-value", propagatedAnnotations[key])
-			assert.NotContains(t, propagatedAnnotations, notExpectedKey)
 		}
+		assert.NotContains(t, propagatedAnnotations, notExpectedKey)
 	})
 }

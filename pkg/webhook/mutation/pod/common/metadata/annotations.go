@@ -9,7 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func CopyMetadataFromNamespace(pod *corev1.Pod, namespace corev1.Namespace, dk dynakube.DynaKube) {
+func CopyMetadataFromNamespace(pod *corev1.Pod, namespace corev1.Namespace, dk dynakube.DynaKube) map[string]string {
 	copiedCustomRuleAnnotations := copyAccordingToCustomRules(pod, namespace, dk)
 	copiedPrefixAnnotations := copyAccordingToPrefix(pod, namespace)
 
@@ -19,7 +19,9 @@ func CopyMetadataFromNamespace(pod *corev1.Pod, namespace corev1.Namespace, dk d
 		}
 	}
 
-	setMetadataAnnotationValue(pod, copiedCustomRuleAnnotations) //json
+	SetMetadataAnnotationValue(pod, copiedCustomRuleAnnotations) //json
+
+	return copiedCustomRuleAnnotations
 }
 
 func copyAccordingToPrefix(pod *corev1.Pod, namespace corev1.Namespace) map[string]string {
@@ -55,7 +57,7 @@ func copyAccordingToCustomRules(pod *corev1.Pod, namespace corev1.Namespace, dk 
 			} else {
 				added := setPodAnnotationIfNotExists(pod, rule.ToAnnotationKey(), valueFromNamespace)
 				if added {
-					copiedAnnotations[rule.Target] = valueFromNamespace //todo yuval - verify not rule.ToAnnotationKey() but target
+					copiedAnnotations[rule.ToAnnotationKey()] = valueFromNamespace
 				}
 			}
 		}
@@ -63,7 +65,7 @@ func copyAccordingToCustomRules(pod *corev1.Pod, namespace corev1.Namespace, dk 
 	return copiedAnnotations
 }
 
-func setMetadataAnnotationValue(pod *corev1.Pod, annotations map[string]string) {
+func SetMetadataAnnotationValue(pod *corev1.Pod, annotations map[string]string) {
 	metadataAnnotations := map[string]string{}
 	for key, value := range annotations {
 		// Annotations added to the json must not have metadata.dynatrace.com/ prefix

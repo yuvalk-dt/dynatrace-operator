@@ -37,11 +37,11 @@ func Mutate(metaClient client.Client, request *dtwebhook.MutationRequest, attrib
 }
 
 func addMetadataToInitArgs(request *dtwebhook.MutationRequest, attributes *podattr.Attributes) {
-	metacommon.CopyMetadataFromNamespace(request.Pod, request.Namespace, request.DynaKube)
+	copiedMetadataAnnotations := metacommon.CopyMetadataFromNamespace(request.Pod, request.Namespace, request.DynaKube)
 
 	metadataAnnotations := map[string]string{}
 
-	for key, value := range request.Pod.Annotations {
+	for key, value := range copiedMetadataAnnotations {
 		if !strings.HasPrefix(key, dynakube.MetadataPrefix) {
 			continue
 		}

@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/Dynatrace/dynatrace-operator/pkg/api/v1beta4/dynakube"
@@ -24,9 +25,16 @@ func TestCopyMetadataFromNamespace(t *testing.T) {
 		}
 
 		CopyMetadataFromNamespace(request.Pod, request.Namespace, request.DynaKube)
-		require.Len(t, request.Pod.Annotations, 1)
+		require.Len(t, request.Pod.Annotations, 2)
 		require.Empty(t, request.Pod.Labels)
 		require.Equal(t, "copyofannotations", request.Pod.Annotations[dynakube.MetadataPrefix+"copyofannotations"])
+
+		var actualMetadataJson map[string]string
+		require.NoError(t, json.Unmarshal([]byte(request.Pod.Annotations[dynakube.MetadataAnnotation]), &actualMetadataJson))
+		expectedMetadataJson := map[string]string{
+			"copyofannotations": "copyofannotations",
+		}
+		require.Equal(t, actualMetadataJson, expectedMetadataJson)
 	})
 
 	t.Run("should copy all labels and annotations defined without override", func(t *testing.T) {
@@ -68,7 +76,7 @@ func TestCopyMetadataFromNamespace(t *testing.T) {
 		}
 
 		CopyMetadataFromNamespace(request.Pod, request.Namespace, request.DynaKube)
-		require.Len(t, request.Pod.Annotations, 4)
+		require.Len(t, request.Pod.Annotations, 5)
 		require.Empty(t, request.Pod.Labels)
 
 		require.Equal(t, "do-not-overwrite", request.Pod.Annotations[dynakube.MetadataPrefix+"copyofannotations"])
@@ -76,6 +84,15 @@ func TestCopyMetadataFromNamespace(t *testing.T) {
 
 		require.Equal(t, "test-value", request.Pod.Annotations[dynakube.MetadataPrefix+"dt.test-annotation"])
 		require.Equal(t, "test-value", request.Pod.Annotations[dynakube.MetadataPrefix+"test-label"])
+
+		var actualMetadataJson map[string]string
+		require.NoError(t, json.Unmarshal([]byte(request.Pod.Annotations[dynakube.MetadataAnnotation]), &actualMetadataJson))
+		expectedMetadataJson := map[string]string{
+			"dt.copyifruleexists": "copyifruleexists",
+			"dt.test-annotation":  "test-value",
+			"test-label":          "test-value",
+		}
+		require.Equal(t, actualMetadataJson, expectedMetadataJson)
 	})
 
 	t.Run("are custom rule types handled correctly", func(t *testing.T) {
@@ -105,15 +122,24 @@ func TestCopyMetadataFromNamespace(t *testing.T) {
 			{
 				Type:   dynakube.EnrichmentAnnotationRule,
 				Source: "test3",
-				Target: "", // mapping missing => rule ignored
+				Target: "", // mapping missing => rule used as primary grail tag with the source name with data enrichment
 			},
 		}
 
 		CopyMetadataFromNamespace(request.Pod, request.Namespace, request.DynaKube)
-		require.Len(t, request.Pod.Annotations, 2)
+		require.Len(t, request.Pod.Annotations, 3)
 		require.Empty(t, request.Pod.Labels)
 		require.Equal(t, "test-label-value", request.Pod.Annotations[dynakube.MetadataPrefix+"dt.test-label"])
 		require.Equal(t, "test-annotation-value2", request.Pod.Annotations[dynakube.MetadataPrefix+"dt.test-annotation"])
+
+		var actualMetadataJson map[string]string
+		require.NoError(t, json.Unmarshal([]byte(request.Pod.Annotations[dynakube.MetadataAnnotation]), &actualMetadataJson))
+		expectedMetadataJson := map[string]string{
+			"dt.test-annotation": "test-annotation-value2",
+			"dt.test-label":      "test-label-value",
+			getEmptyTargetEnrichmentKey(string(dynakube.EnrichmentAnnotationRule), "test3"): "test-annotation-value3",
+		}
+		require.Equal(t, actualMetadataJson, expectedMetadataJson)
 	})
 }
 

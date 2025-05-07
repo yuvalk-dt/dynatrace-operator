@@ -21,3 +21,22 @@ func addMetadataToInitEnv(pod *corev1.Pod, installContainer *corev1.Container) {
 		)
 	}
 }
+
+//func addMetadataToInitEnv(pod *corev1.Pod, installContainer *corev1.Container) {
+//	metadataAnnotations := map[string]string{}
+//
+//	for key, value := range pod.Annotations {
+//		if !strings.HasPrefix(key, dynakube.MetadataPrefix) {
+//			continue
+//		}
+//
+//		split := strings.Split(key, dynakube.MetadataPrefix)
+//		metadataAnnotations[split[1]] = value
+//	}
+//
+//	workloadAnnotationsJson, _ := json.Marshal(metadataAnnotations)
+//	installContainer.Env = append(installContainer.Env,
+//		corev1.EnvVar{
+//			Name: consts.EnrichmentWorkloadAnnotationsEnv, Value: string(workloadAnnotationsJson)},
+//	)
+//}
