@@ -101,11 +101,12 @@ func TestCopyMetadataFromNamespace(t *testing.T) {
 			"test":  "test-label-value",
 			"test2": "test-label-value2",
 			"test3": "test-label-value3",
+			"test4": "test-label-value4",
 		}
 		request.Namespace.Annotations = map[string]string{
 			"test":  "test-annotation-value",
-			"test2": "test-annotation-value2",
 			"test3": "test-annotation-value3",
+			"test4": "test-annotation-value4",
 		}
 
 		request.DynaKube.Status.MetadataEnrichment.Rules = []dynakube.EnrichmentRule{
@@ -115,14 +116,19 @@ func TestCopyMetadataFromNamespace(t *testing.T) {
 				Target: "dt.test-label",
 			},
 			{
-				Type:   dynakube.EnrichmentAnnotationRule,
+				Type:   dynakube.EnrichmentLabelRule,
 				Source: "test2",
-				Target: "dt.test-annotation",
+				Target: "", // mapping missing => rule used as primary grail tag with the source name for data enrichment
 			},
 			{
 				Type:   dynakube.EnrichmentAnnotationRule,
 				Source: "test3",
-				Target: "", // mapping missing => rule used as primary grail tag with the source name with data enrichment
+				Target: "dt.test-annotation",
+			},
+			{
+				Type:   dynakube.EnrichmentAnnotationRule,
+				Source: "test4",
+				Target: "", // mapping missing => rule used as primary grail tag with the source name for data enrichment
 			},
 		}
 
@@ -130,14 +136,16 @@ func TestCopyMetadataFromNamespace(t *testing.T) {
 		require.Len(t, request.Pod.Annotations, 3)
 		require.Empty(t, request.Pod.Labels)
 		require.Equal(t, "test-label-value", request.Pod.Annotations[dynakube.MetadataPrefix+"dt.test-label"])
-		require.Equal(t, "test-annotation-value2", request.Pod.Annotations[dynakube.MetadataPrefix+"dt.test-annotation"])
+		require.Equal(t, "test-annotation-value3", request.Pod.Annotations[dynakube.MetadataPrefix+"dt.test-annotation"])
 
 		var actualMetadataJson map[string]string
 		require.NoError(t, json.Unmarshal([]byte(request.Pod.Annotations[dynakube.MetadataAnnotation]), &actualMetadataJson))
+		require.Len(t, actualMetadataJson, 4)
 		expectedMetadataJson := map[string]string{
-			"dt.test-annotation": "test-annotation-value2",
+			"dt.test-annotation": "test-annotation-value3",
 			"dt.test-label":      "test-label-value",
-			getEmptyTargetEnrichmentKey(string(dynakube.EnrichmentAnnotationRule), "test3"): "test-annotation-value3",
+			getEmptyTargetEnrichmentKey(string(dynakube.EnrichmentAnnotationRule), "test4"): "test-annotation-value4",
+			getEmptyTargetEnrichmentKey(string(dynakube.EnrichmentLabelRule), "test2"):      "test-label-value2",
 		}
 		require.Equal(t, actualMetadataJson, expectedMetadataJson)
 	})

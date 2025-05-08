@@ -1,13 +1,10 @@
 package metadata
 
 import (
-	"maps"
-	"strings"
-
 	podattr "github.com/Dynatrace/dynatrace-bootstrapper/cmd/configure/attributes/pod"
-	"github.com/Dynatrace/dynatrace-operator/pkg/api/v1beta4/dynakube"
 	dtwebhook "github.com/Dynatrace/dynatrace-operator/pkg/webhook"
 	metacommon "github.com/Dynatrace/dynatrace-operator/pkg/webhook/mutation/pod/common/metadata"
+	"maps"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -38,17 +35,5 @@ func Mutate(metaClient client.Client, request *dtwebhook.MutationRequest, attrib
 
 func addMetadataToInitArgs(request *dtwebhook.MutationRequest, attributes *podattr.Attributes) {
 	copiedMetadataAnnotations := metacommon.CopyMetadataFromNamespace(request.Pod, request.Namespace, request.DynaKube)
-
-	metadataAnnotations := map[string]string{}
-
-	for key, value := range copiedMetadataAnnotations {
-		if !strings.HasPrefix(key, dynakube.MetadataPrefix) {
-			continue
-		}
-
-		split := strings.Split(key, dynakube.MetadataPrefix)
-		metadataAnnotations[split[1]] = value
-	}
-
-	maps.Copy(attributes.UserDefined, metadataAnnotations)
+	maps.Copy(attributes.UserDefined, copiedMetadataAnnotations)
 }

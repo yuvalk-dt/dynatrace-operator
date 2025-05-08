@@ -19,7 +19,7 @@ func CopyMetadataFromNamespace(pod *corev1.Pod, namespace corev1.Namespace, dk d
 		}
 	}
 
-	SetMetadataAnnotationValue(pod, copiedCustomRuleAnnotations) //json
+	setMetadataAnnotationValue(pod, copiedCustomRuleAnnotations) //json
 
 	return copiedCustomRuleAnnotations
 }
@@ -65,7 +65,7 @@ func copyAccordingToCustomRules(pod *corev1.Pod, namespace corev1.Namespace, dk 
 	return copiedAnnotations
 }
 
-func SetMetadataAnnotationValue(pod *corev1.Pod, annotations map[string]string) {
+func setMetadataAnnotationValue(pod *corev1.Pod, annotations map[string]string) {
 	metadataAnnotations := map[string]string{}
 	for key, value := range annotations {
 		// Annotations added to the json must not have metadata.dynatrace.com/ prefix
