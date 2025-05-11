@@ -37,13 +37,9 @@ func TestAddMetadataToInitEnv(t *testing.T) {
 		annotationsEnv := env.FindEnvVar(request.InstallContainer.Env, consts.EnrichmentWorkloadAnnotationsEnv)
 		require.NotNil(t, annotationsEnv)
 
-		t.Logf("%+v", annotationsEnv)
-
 		propagatedAnnotations := map[string]string{}
 		err := json.Unmarshal([]byte(annotationsEnv.Value), &propagatedAnnotations)
 		require.NoError(t, err)
-
-		t.Logf("%+v", propagatedAnnotations)
 
 		assert.Equal(t, len(expectedKeys)+1, len(propagatedAnnotations))
 
