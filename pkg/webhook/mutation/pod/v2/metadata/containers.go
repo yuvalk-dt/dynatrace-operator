@@ -32,12 +32,11 @@ func Mutate(metaClient client.Client, request *dtwebhook.MutationRequest, attrib
 func addMetadataToInitArgs(request *dtwebhook.MutationRequest, attributes *podattr.Attributes) {
 	copiedMetadataAnnotations := metacommon.CopyMetadataFromNamespace(request.Pod, request.Namespace, request.DynaKube)
 	if copiedMetadataAnnotations == nil {
-		log.Error(nil, "copied Metadata Annotations is nil failed to copy map")
+		log.Error(nil, "copied metadata annotations from namespace is nil, not copying map to attributes UserDefined")
 		return
 	}
 	if attributes.UserDefined == nil {
 		attributes.UserDefined = make(map[string]string)
-		log.Info("attributes UserDefined is nil so initialized the map then to copy into it")
 	}
 	maps.Copy(attributes.UserDefined, copiedMetadataAnnotations)
 }
