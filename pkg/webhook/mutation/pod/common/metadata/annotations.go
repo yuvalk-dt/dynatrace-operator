@@ -25,7 +25,7 @@ func CopyMetadataFromNamespace(pod *corev1.Pod, namespace corev1.Namespace, dk d
 }
 
 func copyAccordingToPrefix(pod *corev1.Pod, namespace corev1.Namespace) map[string]string {
-	addedAnnotations := map[string]string{}
+	addedAnnotations := make(map[string]string)
 	for key, value := range namespace.Annotations {
 		if strings.HasPrefix(key, dynakube.MetadataPrefix) {
 			added := setPodAnnotationIfNotExists(pod, key, value)
@@ -66,7 +66,7 @@ func copyAccordingToCustomRules(pod *corev1.Pod, namespace corev1.Namespace, dk 
 }
 
 func setMetadataAnnotationValue(pod *corev1.Pod, annotations map[string]string) {
-	metadataAnnotations := map[string]string{}
+	metadataAnnotations := make(map[string]string)
 	for key, value := range annotations {
 		// Annotations added to the json must not have metadata.dynatrace.com/ prefix
 		if strings.HasPrefix(key, dynakube.MetadataPrefix) {
